@@ -1,0 +1,7 @@
+me\nikosgram\oglofus\protection\api\region\ProtectionRegion.class
+me\nikosgram\oglofus\protection\api\handler\Handler.class
+me\nikosgram\oglofus\protection\api\handler\ProtectionRemoveHandler.class
+me\nikosgram\oglofus\protection\api\region\ProtectionStaff.class
+me\nikosgram\oglofus\protection\api\region\ProtectionRank.class
+me\nikosgram\oglofus\protection\api\ActionResponse.class
+me\nikosgram\oglofus\protection\api\region\ProtectionVector.class

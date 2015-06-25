@@ -1,0 +1,5 @@
+name: ${project.name}
+version: ${project.version}
+main: me.nikosgram.oglofus.protection.OglofusBukkit
+author: nikosgram13
+softdepend: [WorldGuard]

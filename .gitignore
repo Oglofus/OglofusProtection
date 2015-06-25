@@ -225,8 +225,9 @@ com_crashlytics_export_strings.xml
 #### Project
 ##########################
 
+/.repositories/
 /target/
-/dependency-reduced-pom.xml
+*/dependency-reduced-pom.xml
 
 #################
 ## Java
