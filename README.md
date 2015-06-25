@@ -1,6 +1,6 @@
-# OglofusProtection [![Build Status](https://api.travis-ci.org/nikosgram13/OglofusProtection.svg?branch=master)](https://travis-ci.org/nikosgram13/OglofusProtection)
+# OglofusProtection [![Build Status](https://travis-ci.org/Oglofus/OglofusProtection.svg)](https://travis-ci.org/Oglofus/OglofusProtection)
 
-OglofusProtection allows a player to place a special block, and this protects their area from griefing! (Spigot & Sponge API)
+The OglofusProtection project is a free open source plugin for the Spigot/Bukkit and Sponge API. This plugin allows a player to place a special block, and this protects their area from griefing.
 
 ## Prerequisites
 * [Java] 7
@@ -9,9 +9,15 @@ OglofusProtection allows a player to place a special block, and this protects th
 ## Cloning
 The following steps will ensure your project is cloned properly.
 
-1. `git clone git@github.com:nikosgram13/OglofusProtection.git`
-2. `cd OglofusProtection`  
-3. `git submodule update --init --recursive`
+1. `git clone git@github.com:Oglofus/OglofusProtection.git`
+
+## Compiling
+Use Maven to compile OglofusProtection.
+
+Run the following in your terminal/command prompt:
+```shell
+mvn clean package
+```
 
 ## Download
-https://github.com/nikosgram13/OglofusProtection/wiki#download
+https://github.com/Oglofus/OglofusProtection/releases
