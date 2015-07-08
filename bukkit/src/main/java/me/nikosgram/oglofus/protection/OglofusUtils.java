@@ -20,10 +20,7 @@ import me.nikosgram.oglofus.protection.api.message.MessageType;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
 
 @SuppressWarnings("unused")
 public class OglofusUtils {
@@ -32,33 +29,6 @@ public class OglofusUtils {
     static {
         nameServer = Bukkit.getServer().getClass().getPackage().getName();
         nameServer = nameServer.substring(nameServer.lastIndexOf(".") + 1);
-    }
-
-    public static <T> List<T> page(int page, int size, List<T> list) {
-        List<T> returned = new ArrayList<T>();
-        if ((size * page) > list.size()) {
-            return returned;
-        }
-        int end = (size * page) + size;
-        if ((size * page) + size > list.size()) {
-            end = list.size();
-        }
-        for (int i = (size * page); i < end; i++) {
-            returned.add(list.get(i));
-        }
-        return returned;
-    }
-
-    public static <T> T newInstance(Class<T> tClass, Object... objects) {
-        try {
-            return tClass.getConstructor().newInstance(objects);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static String capitalizeMessage(String message) {
-        return message.substring(0, 1) + message.substring(1).toLowerCase();
     }
 
     public static void sendMessage(Player player, String message, MessageType type) {

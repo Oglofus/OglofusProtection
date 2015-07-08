@@ -1,8 +1,9 @@
 package me.nikosgram.oglofus.protection;
 
 import me.nikosgram.oglofus.protection.api.ProtectionPlugin;
-import me.nikosgram.oglofus.protection.api.manager.InvitationManager;
+import me.nikosgram.oglofus.protection.api.manager.HandlerManager;
 import me.nikosgram.oglofus.protection.api.manager.RegionManager;
+import me.nikosgram.oglofus.protection.api.manager.UserManager;
 
 @SuppressWarnings("unused")
 public final class OglofusProtection {
@@ -23,7 +24,11 @@ public final class OglofusProtection {
         return plugin.getRegionManager();
     }
 
-    public static InvitationManager getInvitationManager() {
-        return plugin.getInvitationManager();
+    public static UserManager getUserManager() {
+        return plugin.getUserManager();
+    }
+
+    public static HandlerManager getHandlerManager() {
+        return plugin.getHandlerManager();
     }
 }

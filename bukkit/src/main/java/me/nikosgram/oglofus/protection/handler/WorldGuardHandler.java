@@ -16,24 +16,24 @@
 
 package me.nikosgram.oglofus.protection.handler;
 
-import com.google.common.base.Optional;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
+import me.nikosgram.oglofus.protection.api.handler.HandlerAnnotation;
+import me.nikosgram.oglofus.protection.api.handler.HandlerListener;
 import me.nikosgram.oglofus.protection.api.handler.ProtectionCreateHandler;
-import me.nikosgram.oglofus.protection.api.region.ProtectionVector;
 import org.bukkit.Location;
 
-public class WorldGuardHandler implements ProtectionCreateHandler {
+@SuppressWarnings("unused")
+public class WorldGuardHandler implements HandlerListener {
     public boolean hasRegion(Location loc) {
         return WorldGuardPlugin.inst().getRegionManager(loc.getWorld()).getApplicableRegions(loc).size() > 0;
     }
 
-    @Override
-    public boolean onProtectionCreate(ProtectionVector vector, Optional<Object> sender) {
-        for (Location location : vector.getBlocks(Location.class)) {
+    @HandlerAnnotation
+    public void onProtectionCreate(ProtectionCreateHandler handler) {
+        for (Location location : handler.getVector().getBlocks(Location.class)) {
             if (hasRegion(location)) {
-                return false;
+                handler.setCanceled(true);
             }
         }
-        return true;
     }
 }

@@ -16,4 +16,4 @@
 
 package me.nikosgram.oglofus.protection.api.handler;
 
-public interface Handler {}
+public abstract class Handler {}

@@ -17,7 +17,11 @@
 package me.nikosgram.oglofus.protection;
 
 import com.google.common.base.Optional;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import me.nikosgram.oglofus.protection.api.region.ProtectionLocation;
 import org.apache.commons.lang.ClassUtils;
 import org.bukkit.Chunk;

@@ -226,7 +226,9 @@ com_crashlytics_export_strings.xml
 ##########################
 
 /.repositories/
-/target/
+bukkit/target/
+sponge/target/
+api/target/
 */dependency-reduced-pom.xml
 
 #################

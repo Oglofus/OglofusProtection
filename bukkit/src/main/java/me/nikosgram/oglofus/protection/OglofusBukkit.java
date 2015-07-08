@@ -17,11 +17,21 @@
 package me.nikosgram.oglofus.protection;
 
 import com.google.common.base.Optional;
+import com.sk89q.intake.Intake;
+import com.sk89q.intake.argument.Namespace;
+import com.sk89q.intake.dispatcher.Dispatcher;
+import com.sk89q.intake.fluent.CommandGraph;
+import com.sk89q.intake.parametric.Injector;
+import com.sk89q.intake.parametric.ParametricBuilder;
+import com.sk89q.intake.parametric.provider.PrimitivesModule;
+import com.sk89q.intake.util.auth.Authorizer;
 import lombok.Getter;
+import me.nikosgram.oglofus.protection.api.CommandExecutor;
 import me.nikosgram.oglofus.protection.api.Platform;
 import me.nikosgram.oglofus.protection.api.ProtectionPlugin;
-import me.nikosgram.oglofus.protection.api.manager.InvitationManager;
+import me.nikosgram.oglofus.protection.api.manager.HandlerManager;
 import me.nikosgram.oglofus.protection.api.manager.RegionManager;
+import me.nikosgram.oglofus.protection.api.manager.UserManager;
 import me.nikosgram.oglofus.protection.api.region.ProtectionLocation;
 import me.nikosgram.oglofus.protection.api.region.ProtectionRegion;
 import me.nikosgram.oglofus.protection.database.DatabaseConnector;
@@ -32,6 +42,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockMultiPlaceEvent;
+import org.bukkit.event.block.BlockPistonEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -46,11 +59,14 @@ public class OglofusBukkit extends JavaPlugin implements ProtectionPlugin, Liste
     protected final Properties properties;
     @Getter
     private final Platform platform = Platform.Bukkit;
+    @Getter
+    private final HandlerManager handlerManager = new OglofusHandlerManager();
     protected DatabaseConnector connector;
+    protected Dispatcher dispatcher;
     @Getter
     private RegionManager regionManager;
     @Getter
-    private InvitationManager invitationManager;
+    private UserManager userManager;
 
     public OglofusBukkit() {
         InputStream stream = this.getClass().getResourceAsStream("/.properties");
@@ -74,30 +90,55 @@ public class OglofusBukkit extends JavaPlugin implements ProtectionPlugin, Liste
                     new SQLiteDatabaseDriver(Paths.get(getConfig().getString("database.host")))
             );
         } else {
-            this.connector = new DatabaseConnector(
-                    new MySQLDatabaseDriver(
-                            getConfig().getString("database.user"),
-                            getConfig().getString("database.data"),
-                            getConfig().getString("database.pass"),
-                            getConfig().getString("database.host"),
-                            getConfig().getInt("database.port")
-                    )
-            );
+            this.connector = new DatabaseConnector(new MySQLDatabaseDriver(
+                    getConfig().getString("database.user"),
+                    getConfig().getString("database.data"),
+                    getConfig().getString("database.pass"),
+                    getConfig().getString("database.host"),
+                    getConfig().getInt("database.port")
+            ));
         }
 
         this.connector.openConnection();
 
         if (connector.checkConnection()) {
             this.regionManager = new OglofusRegionManager(this);
-            this.invitationManager = new OglofusInvitationManager(this);
+            this.userManager = new OglofusUserManager(this);
         }
     }
 
     @Override
     public void onEnable() {
         if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
-            this.regionManager.registerHandler(new WorldGuardHandler());
+            handlerManager.registerHandlers(new WorldGuardHandler());
         }
+
+        Injector injector = Intake.createInjector();
+        injector.install(new PrimitivesModule());
+        injector.install(new OglofusModule());
+
+        ParametricBuilder builder = new ParametricBuilder(injector);
+        builder.setAuthorizer(new Authorizer() {
+            @Override
+            public boolean testPermission(Namespace namespace, String permission) {
+                CommandExecutor sender = namespace.get(CommandExecutor.class);
+                if (sender == null) {
+                    throw new RuntimeException("Uh oh! A user didn't use this command.");
+                } else {
+                    return sender.hasPermission(permission);
+                }
+            }
+        });
+
+        dispatcher = new CommandGraph()
+                .builder(builder)
+                .commands()
+                .group("protection", "protector", "protect", "p")
+                .registerMethods(new OglofusCommands())
+                .parent()
+                .graph()
+                .getDispatcher();
+
         getServer().getPluginManager().registerEvents(this, this);
     }
 
@@ -135,6 +176,47 @@ public class OglofusBukkit extends JavaPlugin implements ProtectionPlugin, Liste
     }
 
     @EventHandler
+    public void security(BlockBurnEvent event) {
+        ProtectionLocation location = new OglofusProtectionLocation(
+                this,
+                event.getBlock().getWorld().getUID(),
+                event.getBlock().getX(),
+                event.getBlock().getY(),
+                event.getBlock().getZ()
+        );
+        Optional<ProtectionRegion> region = getRegionManager().getRegion(location);
+        if (region.isPresent()) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void security(BlockPistonEvent event) {
+        //TODO: needs tests.
+        ProtectionLocation location = new OglofusProtectionLocation(
+                this,
+                event.getBlock().getWorld().getUID(),
+                event.getBlock().getX(),
+                event.getBlock().getY(),
+                event.getBlock().getZ()
+        );
+        Optional<ProtectionRegion> region = getRegionManager().getRegion(location);
+        if (region.isPresent()) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void security(BlockMultiPlaceEvent event) {
+        //TODO: needs tests.
+        ProtectionLocation location = new OglofusProtectionLocation(
+                this,
+                event.getBlock().getWorld().getUID(),
+                event.getBlock().getX(),
+                event.getBlock().getY(),
+                event.getBlock().getZ()
+        );
+        Optional<ProtectionRegion> region = getRegionManager().getRegion(location);
+        if (region.isPresent()) event.setCancelled(true);
+    }
+
+    @EventHandler
     public void security(BlockPlaceEvent event) {
         ProtectionLocation location = new OglofusProtectionLocation(
                 this,
@@ -168,14 +250,18 @@ public class OglofusBukkit extends JavaPlugin implements ProtectionPlugin, Liste
         );
         Optional<ProtectionRegion> region = getRegionManager().getRegion(location);
         if (region.isPresent()) {
-            if (!region.get().getProtectionStaff().hasMemberAccess(event.getPlayer().getUniqueId())) {
-                event.setCancelled(true);
-            } else {
-                if (region.get().getProtectionVector().getBlockLocation().equals(location)) {
-                    if (!region.get().getProtectionStaff().hasOwnerAccess(event.getPlayer().getUniqueId())) {
-                        event.setCancelled(true);
+            if (event.getPlayer() != null) {
+                if (!region.get().getProtectionStaff().hasMemberAccess(event.getPlayer().getUniqueId())) {
+                    event.setCancelled(true);
+                } else {
+                    if (region.get().getProtectionVector().getBlockLocation().equals(location)) {
+                        if (!region.get().getProtectionStaff().hasOwnerAccess(event.getPlayer().getUniqueId())) {
+                            event.setCancelled(true);
+                        }
                     }
                 }
+            } else {
+                event.setCancelled(true);
             }
         }
     }

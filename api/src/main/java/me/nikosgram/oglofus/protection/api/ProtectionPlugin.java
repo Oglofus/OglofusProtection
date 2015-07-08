@@ -1,7 +1,8 @@
 package me.nikosgram.oglofus.protection.api;
 
-import me.nikosgram.oglofus.protection.api.manager.InvitationManager;
+import me.nikosgram.oglofus.protection.api.manager.HandlerManager;
 import me.nikosgram.oglofus.protection.api.manager.RegionManager;
+import me.nikosgram.oglofus.protection.api.manager.UserManager;
 
 @SuppressWarnings("unused")
 public interface ProtectionPlugin {
@@ -15,5 +16,7 @@ public interface ProtectionPlugin {
 
     RegionManager getRegionManager();
 
-    InvitationManager getInvitationManager();
+    UserManager getUserManager();
+
+    HandlerManager getHandlerManager();
 }

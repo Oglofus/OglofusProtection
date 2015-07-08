@@ -17,57 +17,75 @@
 package me.nikosgram.oglofus.protection;
 
 import com.google.common.base.Optional;
-import lombok.Getter;
+import com.sk89q.intake.argument.ArgumentException;
+import com.sk89q.intake.argument.ArgumentParseException;
+import com.sk89q.intake.argument.CommandArgs;
+import com.sk89q.intake.parametric.ProvisionException;
 import me.nikosgram.oglofus.protection.api.ActionResponse;
+import me.nikosgram.oglofus.protection.api.CommandExecutor;
+import me.nikosgram.oglofus.protection.api.entity.User;
 import me.nikosgram.oglofus.protection.api.message.MessageType;
 import me.nikosgram.oglofus.protection.api.region.ProtectionRank;
 import me.nikosgram.oglofus.protection.api.region.ProtectionRegion;
 import me.nikosgram.oglofus.protection.api.region.ProtectionStaff;
 import org.apache.commons.lang3.ClassUtils;
 import org.spongepowered.api.entity.player.Player;
-import org.spongepowered.api.entity.player.User;
 import org.spongepowered.api.service.user.UserStorage;
-import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.Texts;
-import org.spongepowered.api.text.chat.ChatType;
-import org.spongepowered.api.text.chat.ChatTypes;
 import org.spongepowered.api.util.command.CommandSource;
 
-import java.util.*;
+import javax.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class OglofusProtectionStaff implements ProtectionStaff {
-    private final Map<UUID, ProtectionRank> staff = new HashMap<>();
-    @Getter
-    private final UUID owner;
+    private final List<User> staff = new ArrayList<User>();
+    private final Map<UUID, ProtectionRank> ranks = new HashMap<UUID, ProtectionRank>();
+    private final User owner;
     private final ProtectionRegion region;
     private final OglofusSponge sponge;
 
     protected OglofusProtectionStaff(ProtectionRegion region, OglofusSponge sponge) {
         this.region = region;
         this.sponge = sponge;
-        owner = UUID.fromString(
-                sponge.connector.getString(
-                        "oglofus_regions", "uuid", region.getUuid().toString(), "owner"
-                ).get()
-        );
+        owner = sponge.getUserManager().getUser(UUID.fromString(sponge.connector.getString(
+                "oglofus_regions", "uuid", region.getUuid().toString(), "owner"
+        ).get())).get();
         Map<String, String> staff = sponge.connector.getStringMap(
                 "oglofus_regions", "uuid", region.getUuid().toString(), new String[]{"player", "rank"}
         );
         for (String uid : staff.keySet()) {
-            this.staff.put(UUID.fromString(uid), ProtectionRank.valueOf(staff.get(uid)));
+            UUID uuid = UUID.fromString(uid);
+            this.staff.add(sponge.getUserManager().getUser(uuid).get());
+            ranks.put(uuid, ProtectionRank.valueOf(staff.get(uid)));
         }
+    }
+
+    @Override
+    public UUID getOwnerUuid() {
+        return owner.getUuid();
+    }
+
+    @Override
+    public User getOwner() {
+        return owner;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getOwnerAs(Class<T> tClass) {
         if (ClassUtils.isAssignable(tClass, Player.class)) {
-            return (Optional<T>) sponge.server.getPlayer(owner);
+            return (Optional<T>) sponge.server.getPlayer(owner.getUuid());
         } else if (ClassUtils.isAssignable(tClass, User.class)) {
             UserStorage storage;
             if ((storage = sponge.game.getServiceManager().provide(UserStorage.class).orNull()) !=
                     null) {
-                return (Optional<T>) storage.get(owner).orNull();
+                return (Optional<T>) storage.get(owner.getUuid()).orNull();
             }
         }
         return Optional.absent();
@@ -78,21 +96,10 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     public <T> Collection<T> getOfficersAs(Class<T> tClass) {
         List<T> returned = new ArrayList<T>();
         if (ClassUtils.isAssignable(tClass, Player.class)) {
-            for (UUID uuid : getOfficers()) {
+            for (UUID uuid : getOfficersUuid()) {
                 Player player;
                 if ((player = sponge.server.getPlayer(uuid).orNull()) != null) {
                     returned.add((T) player);
-                }
-            }
-        } else if (ClassUtils.isAssignable(tClass, User.class)) {
-            UserStorage storage;
-            if ((storage = sponge.game.getServiceManager().provide(UserStorage.class).orNull()) !=
-                    null) {
-                for (UUID uuid : getOfficers()) {
-                    User player;
-                    if ((player = storage.get(uuid).orNull()) != null) {
-                        returned.add((T) player);
-                    }
                 }
             }
         }
@@ -100,11 +107,20 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
-    public Collection<UUID> getOfficers() {
-        List<UUID> returned = new ArrayList<>();
-        for (UUID uuid : staff.keySet()) {
-            if (staff.get(uuid).equals(ProtectionRank.Officer)) {
-                returned.add(uuid);
+    public Collection<UUID> getOfficersUuid() {
+        List<UUID> returned = new ArrayList<UUID>();
+        for (User user : getOfficers()) {
+            returned.add(user.getUuid());
+        }
+        return returned;
+    }
+
+    @Override
+    public Collection<User> getOfficers() {
+        List<User> returned = new ArrayList<User>();
+        for (User user : this) {
+            if (ranks.get(user.getUuid()).equals(ProtectionRank.Officer)) {
+                returned.add(user);
             }
         }
         return returned;
@@ -115,21 +131,10 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     public <T> Collection<T> getMembersAs(Class<T> tClass) {
         List<T> returned = new ArrayList<T>();
         if (ClassUtils.isAssignable(tClass, Player.class)) {
-            for (UUID uuid : getMembers()) {
+            for (UUID uuid : getMembersUuid()) {
                 Player player;
                 if ((player = sponge.server.getPlayer(uuid).orNull()) != null) {
                     returned.add((T) player);
-                }
-            }
-        } else if (ClassUtils.isAssignable(tClass, User.class)) {
-            UserStorage storage;
-            if ((storage = sponge.game.getServiceManager().provide(UserStorage.class).orNull()) !=
-                    null) {
-                for (UUID uuid : getMembers()) {
-                    User player;
-                    if ((player = storage.get(uuid).orNull()) != null) {
-                        returned.add((T) player);
-                    }
                 }
             }
         }
@@ -137,12 +142,20 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public Collection<UUID> getMembers() {
+    public Collection<UUID> getMembersUuid() {
         List<UUID> returned = new ArrayList<UUID>();
-        for (UUID uuid : staff.keySet()) {
-            if (staff.get(uuid).equals(ProtectionRank.Member)) {
-                returned.add(uuid);
+        for (User user : getMembers()) {
+            returned.add(user.getUuid());
+        }
+        return returned;
+    }
+
+    @Override
+    public Collection<User> getMembers() {
+        List<User> returned = new ArrayList<User>();
+        for (User user : this) {
+            if (ranks.get(user.getUuid()).equals(ProtectionRank.Member)) {
+                returned.add(user);
             }
         }
         return returned;
@@ -153,21 +166,10 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     public <T> Collection<T> getStaffAs(Class<T> tClass) {
         List<T> returned = new ArrayList<T>();
         if (ClassUtils.isAssignable(tClass, Player.class)) {
-            for (UUID uuid : staff.keySet()) {
+            for (User user : this) {
                 Player player;
-                if ((player = sponge.server.getPlayer(uuid).orNull()) != null) {
+                if ((player = sponge.server.getPlayer(user.getUuid()).orNull()) != null) {
                     returned.add((T) player);
-                }
-            }
-        } else if (ClassUtils.isAssignable(tClass, User.class)) {
-            UserStorage storage;
-            if ((storage = sponge.game.getServiceManager().provide(UserStorage.class).orNull()) !=
-                    null) {
-                for (UUID uuid : staff.keySet()) {
-                    User player;
-                    if ((player = storage.get(uuid).orNull()) != null) {
-                        returned.add((T) player);
-                    }
                 }
             }
         }
@@ -175,150 +177,164 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
-    public Collection<UUID> getStaff() {
-        return staff.keySet();
+    public Collection<UUID> getStaffUuid() {
+        Collection<UUID> returned = new ArrayList<UUID>();
+        for (User user : this) {
+            returned.add(user.getUuid());
+        }
+        return returned;
     }
 
     @Override
     public boolean isOwner(UUID target) {
-        return target.equals(owner);
+        return owner.getUuid().equals(target);
+    }
+
+    @Override
+    public boolean isOwner(User target) {
+        return owner.getUuid().equals(target.getUuid());
     }
 
     @Override
     public boolean isOfficer(UUID target) {
-        return staff.containsKey(target) && staff.get(target).equals(ProtectionRank.Officer);
+        return ranks.containsKey(target) && ranks.get(target).equals(ProtectionRank.Officer);
+    }
+
+    @Override
+    public boolean isOfficer(User target) {
+        return ranks.containsKey(target.getUuid()) && ranks.get(target.getUuid()).equals(ProtectionRank.Officer);
     }
 
     @Override
     public boolean isMember(UUID target) {
-        return staff.containsKey(target) && staff.get(target).equals(ProtectionRank.Member);
+        return ranks.containsKey(target) && ranks.get(target).equals(ProtectionRank.Member);
+    }
+
+    @Override
+    public boolean isMember(User target) {
+        return ranks.containsKey(target.getUuid()) && ranks.get(target.getUuid()).equals(ProtectionRank.Member);
     }
 
     @Override
     public boolean isStaff(UUID target) {
-        return staff.containsKey(target);
+        return ranks.containsKey(target);
+    }
+
+    @Override
+    public boolean isStaff(User target) {
+        return ranks.containsKey(target.getUuid());
     }
 
     @Override
     public boolean hasOwnerAccess(UUID target) {
-        if (target.equals(owner)) {
-            return true;
-        }
-        Player player;
-        return (player = sponge.server.getPlayer(target).orNull()) != null &&
-                player.hasPermission("oglofus.protection.bypass.owner");
+        return isOwner(target) || sponge.getUserManager().getUser(target).get().hasPermission("oglofus.protection.bypass.owner");
+    }
+
+    @Override
+    public boolean hasOwnerAccess(User target) {
+        return isOwner(target) || target.hasPermission("oglofus.protection.bypass.owner");
     }
 
     @Override
     public boolean hasOfficerAccess(UUID target) {
-        if (staff.containsKey(target) && staff.get(target).equals(ProtectionRank.Officer)) {
-            return true;
-        }
-        Player player;
-        return (player = sponge.server.getPlayer(target).orNull()) != null &&
-                player.hasPermission("oglofus.protection.bypass.officer");
+        return isOfficer(target) || sponge.getUserManager().getUser(target).get().hasPermission("oglofus.protection.bypass.officer");
+    }
+
+    @Override
+    public boolean hasOfficerAccess(User target) {
+        return isOfficer(target) || target.hasPermission("oglofus.protection.bypass.officer");
     }
 
     @Override
     public boolean hasMemberAccess(UUID target) {
-        if (staff.containsKey(target) && staff.get(target).equals(ProtectionRank.Member)) {
-            return true;
-        }
-        Player player;
-        return (player = sponge.server.getPlayer(target).orNull()) != null &&
-                player.hasPermission("oglofus.protection.bypass.member");
+        return isMember(target) || sponge.getUserManager().getUser(target).get().hasPermission("oglofus.protection.bypass.officer");
+    }
+
+    @Override
+    public boolean hasMemberAccess(User target) {
+        return isMember(target) || target.hasPermission("oglofus.protection.bypass.member");
     }
 
     @Override
     public ProtectionRank getRank(UUID target) {
-        return staff.containsKey(target) ? staff.get(target) : ProtectionRank.None;
+        return ranks.containsKey(target) ? ranks.get(target) : ProtectionRank.None;
+    }
+
+    @Override
+    public ProtectionRank getRank(User target) {
+        return ranks.containsKey(target.getUuid()) ? ranks.get(target.getUuid()) : ProtectionRank.None;
     }
 
     @Override
     public void broadcast(String message) {
-        broadcastRaw(MessageType.CHAT, Texts.of(message));
+        broadcast(MessageType.CHAT, message);
     }
 
     @Override
     public void broadcast(String message, ProtectionRank rank) {
-        broadcastRaw(MessageType.CHAT, Texts.of(message), rank);
+        broadcast(MessageType.CHAT, message, rank);
     }
 
     @Override
     public void broadcast(MessageType type, String message) {
-        broadcastRaw(type, Texts.of(message));
+        for (User user : this) {
+            user.sendMessage(type, message);
+        }
     }
 
     @Override
     public void broadcast(MessageType type, String message, ProtectionRank rank) {
-        broadcastRaw(type, Texts.of(message), rank);
+        switch (rank) {
+            case Member:
+                for (User user : getMembers()) {
+                    user.sendMessage(type, message);
+                }
+                break;
+            case Officer:
+                for (User user : getOfficers()) {
+                    user.sendMessage(type, message);
+                }
+                break;
+            case Owner:
+                owner.sendMessage(type, message);
+                break;
+        }
     }
 
     @Override
     public void broadcastRaw(Object message) {
-        broadcastRaw(MessageType.CHAT, message);
+        for (User user : this) {
+            user.sendMessage(message);
+        }
     }
 
     @Override
     public void broadcastRaw(Object message, ProtectionRank rank) {
-        broadcastRaw(MessageType.CHAT, message, rank);
+        switch (rank) {
+            case Member:
+                for (User user : getMembers()) {
+                    user.sendMessage(message);
+                }
+                break;
+            case Officer:
+                for (User user : getOfficers()) {
+                    user.sendMessage(message);
+                }
+                break;
+            case Owner:
+                owner.sendMessage(message);
+                break;
+        }
     }
 
     @Override
     public void broadcastRaw(MessageType type, Object message) {
-        if (message instanceof Text) {
-            ChatType chatType = ChatTypes.CHAT;
-            switch (type) {
-                case ACTION_BAR:
-                    chatType = ChatTypes.ACTION_BAR;
-                    break;
-                case CHAT:
-                    chatType = ChatTypes.CHAT;
-                    break;
-                case SYSTEM:
-                    chatType = ChatTypes.SYSTEM;
-                    break;
-            }
-            for (Player player : getStaffAs(Player.class)) {
-                player.sendMessage(chatType, (Text) message);
-            }
-        }
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     public void broadcastRaw(MessageType type, Object message, ProtectionRank rank) {
-        if (message instanceof Text) {
-            ChatType chatType = ChatTypes.CHAT;
-            switch (type) {
-                case ACTION_BAR:
-                    chatType = ChatTypes.ACTION_BAR;
-                    break;
-                case CHAT:
-                    chatType = ChatTypes.CHAT;
-                    break;
-                case SYSTEM:
-                    chatType = ChatTypes.SYSTEM;
-                    break;
-            }
-            switch (rank) {
-                case Member:
-                    for (Player player : getMembersAs(Player.class)) {
-                        player.sendMessage(chatType, (Text) message);
-                    }
-                    break;
-                case Officer:
-                    for (Player player : getOfficersAs(Player.class)) {
-                        player.sendMessage(chatType, (Text) message);
-                    }
-                    break;
-                case Owner:
-                    Optional<Player> player = getOwnerAs(Player.class);
-                    if (player.isPresent()) {
-                        player.get().sendMessage(chatType, (Text) message);
-                    }
-                    break;
-            }
-        }
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -329,24 +345,45 @@ public class OglofusProtectionStaff implements ProtectionStaff {
 
     @Override
     public ActionResponse invite(Object sender, UUID target) {
-        return sponge.getInvitationManager().invite(sender, target, region);
+        return sponge.getUserManager().invite(sender, target, region);
+    }
+
+    @Override
+    public ActionResponse invite(CommandExecutor sender, UUID target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse invite(Object sender, User target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse invite(CommandExecutor sender, User target) {
+        return null;
     }
 
     @Override
     public ActionResponse invite(UUID target) {
-        return sponge.getInvitationManager().invite(target, region);
+        return sponge.getUserManager().invite(target, region);
+    }
+
+    @Override
+    public ActionResponse invite(User target) {
+        return null;
     }
 
     @Override
     public ActionResponse kick(Object sender, UUID target) {
         if (sender instanceof CommandSource) {
             if (sender instanceof Player) {
-                if (hasOwnerAccess(((Player) sender).getUniqueId())) {
+                if (region.getProtectionStaff().hasOwnerAccess(((Player) sender).getUniqueId())) {
+                    //TODO: call the handler PlayerKickHandler.
                     return kick(target);
                 }
                 return ActionResponse.Failure.setMessage("access");
             }
-            if (((CommandSource) sender).hasPermission("oglofus.protection.bypass.kick")) {
+            if (((CommandSource) sender).hasPermission("oglofus.protection.bypass")) {
                 return kick(target);
             }
             return ActionResponse.Failure.setMessage("access");
@@ -355,8 +392,28 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
+    public ActionResponse kick(CommandExecutor sender, UUID target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse kick(Object sender, User target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse kick(CommandExecutor sender, User target) {
+        return null;
+    }
+
+    @Override
     public ActionResponse kick(UUID target) {
-        //TODO: make it!
+        //TODO: call the handler PlayerKickHandler.
+        return null;
+    }
+
+    @Override
+    public ActionResponse kick(User target) {
         return null;
     }
 
@@ -366,7 +423,27 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
+    public ActionResponse promote(CommandExecutor sender, UUID target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse promote(Object sender, User target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse promote(CommandExecutor sender, User target) {
+        return null;
+    }
+
+    @Override
     public ActionResponse promote(UUID target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse promote(User target) {
         return null;
     }
 
@@ -376,7 +453,27 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
+    public ActionResponse demote(CommandExecutor sender, UUID target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse demote(Object sender, User target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse demote(CommandExecutor sender, User target) {
+        return null;
+    }
+
+    @Override
     public ActionResponse demote(UUID target) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse demote(User target) {
         return null;
     }
 
@@ -386,7 +483,60 @@ public class OglofusProtectionStaff implements ProtectionStaff {
     }
 
     @Override
+    public ActionResponse changeRank(CommandExecutor sender, UUID target, ProtectionRank rank) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse changeRank(Object sender, User target, ProtectionRank rank) {
+        return null;
+    }
+
+    @Override
+    public ActionResponse changeRank(CommandExecutor sender, User target, ProtectionRank rank) {
+        return null;
+    }
+
+    @Override
     public ActionResponse changeRank(UUID target, ProtectionRank rank) {
         return null;
+    }
+
+    @Override
+    public ActionResponse changeRank(User target, ProtectionRank rank) {
+        return null;
+    }
+
+    @Override
+    public Iterator<User> iterator() {
+        return staff.iterator();
+    }
+
+    @Override
+    public boolean isProvided() {
+        return false;
+    }
+
+    @Nullable
+    @Override
+    public User get(CommandArgs arguments, List<? extends Annotation> modifiers) throws ArgumentException, ProvisionException {
+        String name = arguments.next();
+        Optional<User> user = sponge.getUserManager().getUser(name);
+        if (user.isPresent() && isStaff(user.get())) {
+            return user.get();
+        } else {
+            throw new ArgumentParseException(String.format("I can't find the Staff with name '%s'.", name));
+        }
+    }
+
+    @Override
+    public List<String> getSuggestions(String prefix) {
+        List<String> returned = new ArrayList<String>();
+        for (User user : this) {
+            if (user.getName().startsWith(prefix)) {
+                returned.add(user.getName());
+            }
+        }
+        return returned;
     }
 }

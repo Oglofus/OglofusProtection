@@ -18,7 +18,11 @@ package me.nikosgram.oglofus.protection;
 
 import com.flowpowered.math.vector.Vector3d;
 import com.google.common.base.Optional;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import me.nikosgram.oglofus.protection.api.region.ProtectionLocation;
 import org.apache.commons.lang3.ClassUtils;
 import org.spongepowered.api.block.BlockState;

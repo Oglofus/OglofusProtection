@@ -17,19 +17,28 @@
 package me.nikosgram.oglofus.protection;
 
 import com.google.common.base.Optional;
+import com.sk89q.intake.argument.ArgumentException;
+import com.sk89q.intake.argument.ArgumentParseException;
+import com.sk89q.intake.argument.CommandArgs;
+import com.sk89q.intake.parametric.ProvisionException;
 import me.nikosgram.oglofus.protection.api.ActionResponse;
-import me.nikosgram.oglofus.protection.api.handler.Handler;
 import me.nikosgram.oglofus.protection.api.manager.RegionManager;
 import me.nikosgram.oglofus.protection.api.region.ProtectionLocation;
 import me.nikosgram.oglofus.protection.api.region.ProtectionRegion;
 import me.nikosgram.oglofus.protection.api.region.ProtectionVector;
 
-import java.util.*;
+import javax.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class OglofusRegionManager implements RegionManager {
     private final OglofusSponge sponge;
     private final Map<UUID, ProtectionRegion> map = new HashMap<UUID, ProtectionRegion>();
-    private final List<Handler> handlers = new ArrayList<Handler>();
 
     protected OglofusRegionManager(OglofusSponge sponge) {
         this.sponge = sponge;
@@ -97,7 +106,7 @@ public class OglofusRegionManager implements RegionManager {
                 return Optional.of(map.get(uuid));
             }
         }
-        for (ProtectionRegion region : getRegions()) {
+        for (ProtectionRegion region : this) {
             ProtectionVector vector = region.getProtectionVector();
             if (!location.getWorld().equals(vector.getBlockLocation().getWorld())) {
                 continue;
@@ -114,11 +123,6 @@ public class OglofusRegionManager implements RegionManager {
     }
 
     @Override
-    public Collection<ProtectionRegion> getRegions() {
-        return map.values();
-    }
-
-    @Override
     public ActionResponse createProtectionRegion(ProtectionLocation location, UUID owner) {
         //TODO create a new protection region!
         return null;
@@ -131,7 +135,35 @@ public class OglofusRegionManager implements RegionManager {
     }
 
     @Override
-    public void registerHandler(Handler handler) {
-        handlers.add(handler);
+    public Iterator<ProtectionRegion> iterator() {
+        return map.values().iterator();
+    }
+
+    @Override
+    public boolean isProvided() {
+        return false;
+    }
+
+    @Nullable
+    @Override
+    public ProtectionRegion get(CommandArgs arguments, List<? extends Annotation> modifiers) throws ArgumentException, ProvisionException {
+        String name = arguments.next();
+        Optional<ProtectionRegion> region = getRegion(name);
+        if (region.isPresent()) {
+            return region.get();
+        } else {
+            throw new ArgumentParseException(String.format("I can't find the Region with name '%s'.", name));
+        }
+    }
+
+    @Override
+    public List<String> getSuggestions(String prefix) {
+        List<String> returned = new ArrayList<String>();
+        for (ProtectionRegion region : this) {
+            if (region.getName().startsWith(prefix)) {
+                returned.add(region.getName());
+            }
+        }
+        return returned;
     }
 }

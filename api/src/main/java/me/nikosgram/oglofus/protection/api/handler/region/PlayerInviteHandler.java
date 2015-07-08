@@ -14,28 +14,31 @@
  * limitations under the License.
  */
 
-package me.nikosgram.oglofus.protection.api.handler;
+package me.nikosgram.oglofus.protection.api.handler.region;
 
 import com.google.common.base.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import me.nikosgram.oglofus.protection.api.CommandExecutor;
-import me.nikosgram.oglofus.protection.api.region.ProtectionVector;
+import me.nikosgram.oglofus.protection.api.entity.User;
+import me.nikosgram.oglofus.protection.api.handler.CancelableHandler;
+import me.nikosgram.oglofus.protection.api.region.ProtectionRegion;
 
 @ToString
 @SuppressWarnings("unused")
-public class ProtectionCreateHandler extends Handler implements CancelableHandler {
+public class PlayerInviteHandler extends RegionHandler implements CancelableHandler {
     @Getter
-    private final ProtectionVector vector;
+    private final User user;
     @Getter
     private final Optional<CommandExecutor> sender;
     @Getter
     @Setter
     private boolean canceled = false;
 
-    public ProtectionCreateHandler(ProtectionVector vector, CommandExecutor executor) {
-        this.vector = vector;
+    public PlayerInviteHandler(ProtectionRegion region, User user, CommandExecutor executor) {
+        super(region);
+        this.user = user;
         this.sender = Optional.fromNullable(executor);
     }
 }

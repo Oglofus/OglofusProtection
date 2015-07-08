@@ -19,5 +19,6 @@ package me.nikosgram.oglofus.protection.api;
 @SuppressWarnings("unused")
 public enum Platform {
     Bukkit,
-    Sponge
+    Sponge,
+    Other
 }

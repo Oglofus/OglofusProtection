@@ -1,5 +1,0 @@
-name: oglofus-protection-bukkit
-version: 2.0.1-R0.1-SNAPSHOT
-main: me.nikosgram.oglofus.protection.OglofusBukkit
-author: nikosgram13
-softdepend: [WorldGuard]
