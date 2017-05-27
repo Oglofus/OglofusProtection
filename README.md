@@ -1,6 +1,6 @@
 # OglofusProtection [![Build Status](https://travis-ci.org/Oglofus/OglofusProtection.svg)](https://travis-ci.org/Oglofus/OglofusProtection)
 
-The OglofusProtection project is a free open source plugin for the Spigot/Bukkit and Sponge API. This plugin allows a player to place a special block, and this protects their area from griefing.
+The OglofusProtection project is a free, open-source, plugin for the Spigot/Bukkit and Sponge APIs that has written in Java. This plugin allows the players to place a special block that protects a specifical area around the block and protects this area from griefing, like PreciousStones!
 
 ## Prerequisites
 * [Java] 7
